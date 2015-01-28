@@ -10,7 +10,7 @@ import org.json.JSONObject;
 public class MsgSend {
 	
 
-	public static  void  SendAuth(String ClientId, OutputStream o) {
+	public static  void  SendAuth(String ClientId,String user,OutputStream o) {
 
 		try {
 			JSONObject msgjson=new JSONObject();
@@ -18,7 +18,7 @@ public class MsgSend {
 			JSONObject Payloadjson=new JSONObject();
 			Payloadjson.put("Version", "2");
 			Payloadjson.put("MmVersion", "1.7");
-			Payloadjson.put("User", "");
+			Payloadjson.put("User", user);
 			Payloadjson.put("Password", "");
 			Payloadjson.put("OS", "darwin");
 			Payloadjson.put("Arch", "amd64");
@@ -35,7 +35,7 @@ public class MsgSend {
 	}
 	
 	public static  void  SendReqTunnel(OutputStream o,String Protocol) {
-		// 得到对象产生的ID
+		// 碌脙碌陆露脭脧贸虏煤脡煤碌脛ID
 		String ReqId =  UUID.randomUUID().toString().toLowerCase().replace("-", "").substring(0, 8);
 		try {
 			JSONObject msgjson=new JSONObject();
@@ -46,7 +46,7 @@ public class MsgSend {
 			Payloadjson.put("Protocol", Protocol);
 			if(Protocol.equals("tcp"))
 			{
-				Payloadjson.put("RemotePort",222);
+				Payloadjson.put("RemotePort",0);
 			}
 			
 			else
