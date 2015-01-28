@@ -12,8 +12,8 @@ public class NgrokClient {
 			boolean debug) {
 
 		Log.isdebug = debug;
-		String serveraddr="tunnel.mobi";//"ngrokd.ngrok.com"
-		int serverport=44433;
+		String serveraddr="ngrokd.ngrok.com";
+		int serverport=443;
 
 		SocketFactory sf = SSLSocketFactory.getDefault();
 		try {
