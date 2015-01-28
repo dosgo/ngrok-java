@@ -7,7 +7,10 @@ public class ngrok {
 	public static void main(String[] args) {
 		System.out.println("main start");
 		NgrokClient ngclient=new NgrokClient();
-		ngclient.start("127.0.0.1",80,"tcp",true);
-
+		//Http
+		ngclient.start("127.0.0.1",80,"http","",true);
+		
+		//TCP
+		ngclient.start("127.0.0.1",22,"tcp","authtoken",true);
 	}
 }
