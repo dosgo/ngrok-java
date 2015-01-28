@@ -9,8 +9,8 @@ import javax.net.ssl.SSLSocketFactory;
 
 public class ProxyThread extends Thread {
 	String ClientId = "";
-	String serveraddr="tunnel.mobi";//"ngrokd.ngrok.com"
-	int serverport=44433;
+	String serveraddr="ngrokd.ngrok.com";
+	int serverport=443;
 
 	public ProxyThread(String ClientIdp) {
 		super();
@@ -25,7 +25,7 @@ public class ProxyThread extends Thread {
 			s = (SSLSocket) sf.createSocket(serveraddr, serverport);
 			s.setEnabledProtocols(new String[] { "SSLv3" });
 			MsgOn msg = new MsgOn();
-			// Æ´°ü·¢ËÍ
+			// Ã†Â´Â°Ã¼Â·Â¢Ã‹Ã
 			MsgSend.SendRegProxy(ClientId, s.getOutputStream());
 			msg.unpack(s);
 
