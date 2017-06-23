@@ -1,6 +1,7 @@
 package com.geek.ngrok;
 
 import java.io.IOException;
+import java.net.SocketException;
 
 import javax.net.ssl.SSLSocket;
 
@@ -16,7 +17,11 @@ public class PingThread extends Thread {
 	public void run() {
 		while (ngrokcli.trfalg) {
 			try {
-				MsgSend.SendPing(sock.getOutputStream());
+				try{
+					MsgSend.SendPing(sock.getOutputStream());
+				}catch(SocketException e){
+					ngrokcli.trfalg=false;
+				}
 				Log.print("Ping ....");
 			} catch (IOException e) {
 				ngrokcli.trfalg=false;
