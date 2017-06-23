@@ -89,8 +89,10 @@ public class MsgOn {
 			ngrokcli.ClientId = Payload.getString("ClientId");
 			
 			// 
+			HashMap<String, String> tunelInfo;
+			
 	        for(int i = 0;i < ngrokcli.tunnels.size(); i ++){
-	        	HashMap<String, String> tunelInfo=ngrokcli.tunnels.get(i);
+	        	tunelInfo=ngrokcli.tunnels.get(i);
 	        	String ReqId =  UUID.randomUUID().toString().toLowerCase().replace("-", "").substring(0, 8);
 	        	MsgSend.SendReqTunnel(s.getOutputStream(),ReqId, tunelInfo.get("Protocol"),tunelInfo.get("Hostname"),tunelInfo.get("Subdomain"),tunelInfo.get("RemotePort"),tunelInfo.get("HttpAuth"));
 	        	HashMap<String, String> tunelInfo1 = new HashMap<String, String>();
@@ -102,8 +104,7 @@ public class MsgOn {
 			
 			
 			// start ping thread
-			Thread pingtr = new PingThread(ngrokcli,s);
-			pingtr.start();
+			new PingThread(ngrokcli,s).start();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -111,9 +112,7 @@ public class MsgOn {
 	}
 
 	public void ReqProxy(JSONObject json) {
-
-		Thread xx = new ProxyThread(ngrokcli,ngrokcli.ClientId);
-		xx.start();
+		new ProxyThread(ngrokcli,ngrokcli.ClientId).start();
 	}
 
 	public void Ping(JSONObject json, SSLSocket s) {
@@ -154,16 +153,12 @@ public class MsgOn {
 			try{
 				JSONObject Payload = json.getJSONObject("Payload");
 				String Url=Payload.getString("Url");
-				HashMap<String, String> tunelInfo=ngrokcli.tunnelinfos.get(Url);
-				
-
-				Socket locals = new Socket(tunelInfo.get("localhost"),Integer.parseInt(tunelInfo.get("localport")));
-
-				SOCKSToThread thread1 = new SOCKSToThread(s.getInputStream(),
+				Socket locals = new Socket(ngrokcli.tunnelinfos.get(Url).get("localhost"),Integer.parseInt(ngrokcli.tunnelinfos.get(Url).get("localport")));
+				new SOCKSToThread(s.getInputStream(),
 						locals.getOutputStream());
 
 				// 读取本地数据给远程
-				SOCKSToThread thread2 = new SOCKSToThread(locals.getInputStream(),
+				new SOCKSToThread(locals.getInputStream(),
 						s.getOutputStream());
 			}catch (JSONException e) {
 				// TODO Auto-generated catch block

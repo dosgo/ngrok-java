@@ -20,7 +20,7 @@ public class NgrokClient {
 	String serveraddr="tunnel.qydev.com";
 	int serverport=4443;
 	SSLSocket s;
-	 
+	SocketFactory sf=null;
 	public String ClientId = "";
 	public String localhost = "127.0.0.1";
 	public int localport = 80;
@@ -52,8 +52,7 @@ public class NgrokClient {
 		try {
 			MsgSend.SendAuth("",authtoken,s.getOutputStream());
 			//启动线程监听
-			Thread cmdtr = new CmdThread(this,s);
-			cmdtr.start();
+			new CmdThread(this,s).start();
 		} catch (IOException e) {
 			
 		}
@@ -81,12 +80,13 @@ public class NgrokClient {
 	 */
 	public  SSLSocket  connectSSL(){
 		SSLSocket s=null;
-		SocketFactory sf=null;
-		try {
-			sf = trustAllSocketFactory();
-		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
+		if(sf==null){
+			try {
+				sf=trustAllSocketFactory();
+			} catch (Exception e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
 		}
 		try {
 			s = (SSLSocket) sf.createSocket(this.serveraddr, this.serverport);
