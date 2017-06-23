@@ -13,7 +13,6 @@ class SOCKSToThread extends Thread {
 	public SOCKSToThread(InputStream _in, OutputStream _out) {
 		in = new DataInputStream(_in);
 		out = new DataOutputStream(_out);
-
 		start();
 	}
 

@@ -3,6 +3,8 @@ package com.geek.ngrok;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.UUID;
 
 import javax.net.ssl.SSLSocket;
 
@@ -11,19 +13,12 @@ import org.json.JSONObject;
 
 public class MsgOn {
 	boolean isrecv = true;
+	NgrokClient ngrokcli;
 
-	static String ClientId = "";
-	public String localhost = "127.0.0.1";
-	public int localport = 80;
-	public String protocol = "http";
 
-	public MsgOn(String localhost, int localport, String protocol) {
-		this.localhost = localhost;
-		this.localport = localport;
-		this.protocol = protocol;
-	}
 
-	public MsgOn() {
+	public MsgOn(NgrokClient ngrokcli) {
+		this.ngrokcli=ngrokcli;
 		// TODO Auto-generated constructor stub
 	}
 
@@ -57,6 +52,10 @@ public class MsgOn {
 
 				Ping(json, s);
 			}
+			if (type.equals("Pong")) {
+
+				Pong();
+			}
 
 			// NewTunnel
 			if (type.equals("NewTunnel")) {
@@ -87,10 +86,23 @@ public class MsgOn {
 		// 请求映射
 		try {
 			JSONObject Payload = json.getJSONObject("Payload");
-			ClientId = Payload.getString("ClientId");
-			MsgSend.SendReqTunnel(s.getOutputStream(), protocol);
+			ngrokcli.ClientId = Payload.getString("ClientId");
+			
+			// 
+	        for(int i = 0;i < ngrokcli.tunnels.size(); i ++){
+	        	HashMap<String, String> tunelInfo=ngrokcli.tunnels.get(i);
+	        	String ReqId =  UUID.randomUUID().toString().toLowerCase().replace("-", "").substring(0, 8);
+	        	MsgSend.SendReqTunnel(s.getOutputStream(),ReqId, tunelInfo.get("Protocol"),tunelInfo.get("Hostname"),tunelInfo.get("Subdomain"),tunelInfo.get("RemotePort"),tunelInfo.get("HttpAuth"));
+	        	HashMap<String, String> tunelInfo1 = new HashMap<String, String>();
+	        	tunelInfo1.put("localhost", tunelInfo.get("localhost"));
+	        	tunelInfo1.put("localport", tunelInfo.get("localport"));
+	        	ngrokcli.tunnelinfos.put(ReqId, tunelInfo1);
+	        	
+	        }
+			
+			
 			// start ping thread
-			Thread pingtr = new PingThread(s);
+			Thread pingtr = new PingThread(ngrokcli,s);
 			pingtr.start();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -100,7 +112,7 @@ public class MsgOn {
 
 	public void ReqProxy(JSONObject json) {
 
-		Thread xx = new ProxyThread(ClientId);
+		Thread xx = new ProxyThread(ngrokcli,ngrokcli.ClientId);
 		xx.start();
 	}
 
@@ -113,11 +125,20 @@ public class MsgOn {
 			e.printStackTrace();
 		}
 	}
+	
+	public void Pong() {
+		ngrokcli.lasttime=System.currentTimeMillis() / 1000;
+	}
 
-	public static void NewTunnel(JSONObject json) {
+	public  void NewTunnel(JSONObject json) {
 
 		try {
 			JSONObject Payload = json.getJSONObject("Payload");
+			String ReqId=Payload.getString("ReqId");
+			//添加到通道队列
+			
+			ngrokcli.tunnelinfos.put(Payload.getString("Url"), ngrokcli.tunnelinfos.get(ReqId));
+			ngrokcli.tunnelinfos.remove(ReqId);//remove 
 			System.out.println("Url:" + Payload.getString("Url")
 					+ "  Protocol:" + Payload.getString("Protocol"));
 		} catch (JSONException e) {
@@ -130,15 +151,25 @@ public class MsgOn {
 		try {
 			// 不再接收命令,
 			this.isrecv = false;
+			try{
+				JSONObject Payload = json.getJSONObject("Payload");
+				String Url=Payload.getString("Url");
+				HashMap<String, String> tunelInfo=ngrokcli.tunnelinfos.get(Url);
+				
 
-			Socket locals = new Socket(localhost, localport);
+				Socket locals = new Socket(tunelInfo.get("localhost"),Integer.parseInt(tunelInfo.get("localport")));
 
-			SOCKSToThread thread1 = new SOCKSToThread(s.getInputStream(),
-					locals.getOutputStream());
+				SOCKSToThread thread1 = new SOCKSToThread(s.getInputStream(),
+						locals.getOutputStream());
 
-			// 读取本地数据给远程
-			SOCKSToThread thread2 = new SOCKSToThread(locals.getInputStream(),
-					s.getOutputStream());
+				// 读取本地数据给远程
+				SOCKSToThread thread2 = new SOCKSToThread(locals.getInputStream(),
+						s.getOutputStream());
+			}catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -190,7 +221,10 @@ public class MsgOn {
 
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			//异常关闭连接
+			isrecv=false;
+			//e.printStackTrace();
+			return ;
 		}
 	}
 }

@@ -5,12 +5,37 @@ public class ngrok {
 	static String ClientId = "";
 
 	public static void main(String[] args) {
-		System.out.println("main start");
+		//new
 		NgrokClient ngclient=new NgrokClient();
-		//Http
-		ngclient.start("127.0.0.1",80,"http","",true);
-		
-		//TCP
-		ngclient.start("127.0.0.1",22,"tcp","authtoken",true);
+		//addtunnel
+		ngclient.addTun("127.0.0.1",80,"http","","",0,"");
+		//start
+		ngclient.start();
+		//check error
+		while(true){
+			if(ngclient.lasttime+30<(System.currentTimeMillis() / 1000)&&ngclient.lasttime>0){
+				Log.print("check err");
+				
+				ngclient.trfalg=false;
+				try {
+					Thread.sleep(10000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				//reconnct
+				ngclient.trfalg=true;
+				ngclient.start();
+				
+			}else{
+				Log.print("check ok");
+			}
+			try {
+				Thread.sleep(30000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 }

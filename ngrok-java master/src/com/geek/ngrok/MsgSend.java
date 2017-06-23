@@ -34,9 +34,8 @@ public class MsgSend {
 		
 	}
 	
-	public static  void  SendReqTunnel(OutputStream o,String Protocol) {
-		// µÃµ½¶ÔÏó²úÉúµÄID
-		String ReqId =  UUID.randomUUID().toString().toLowerCase().replace("-", "").substring(0, 8);
+	public static  void  SendReqTunnel(OutputStream o,String ReqId,String Protocol,String Hostname,String Subdomain,String RemotePort,String HttpAuth) {
+		//
 		try {
 			JSONObject msgjson=new JSONObject();
 			msgjson.put("Type","ReqTunnel");
@@ -46,14 +45,14 @@ public class MsgSend {
 			Payloadjson.put("Protocol", Protocol);
 			if(Protocol.equals("tcp"))
 			{
-				Payloadjson.put("RemotePort",0);
+				Payloadjson.put("RemotePort",RemotePort);
 			}
 			
 			else
 			{
-				Payloadjson.put("Subdomain", "");
-				Payloadjson.put("HttpAuth", "");
-				Payloadjson.put("Hostname", "");
+				Payloadjson.put("Subdomain", Subdomain);
+				Payloadjson.put("HttpAuth", HttpAuth);
+				Payloadjson.put("Hostname", Hostname);
 			}
 			msgjson.put("Payload", Payloadjson);
 			pack(msgjson.toString(),o);
@@ -85,7 +84,7 @@ public class MsgSend {
 		byte[] lenbuf = BytesUtil.longToBytes(str.length(), 0);
 		byte[] xx = str.getBytes();
 		byte[] msgpack = BytesUtil.addBytesnew(str.length() + 8, lenbuf, xx);
-
+		Log.print("str:"+str);
 		try {
 			o.write(msgpack, 0, str.length() + 8);
 		} catch (IOException e) {
