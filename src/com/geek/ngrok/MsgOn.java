@@ -107,7 +107,7 @@ public class MsgOn {
 	}
 
 	public void ReqProxy(JSONObject json) {
-		SocketChannel channel=ngrokcli.connect(ngrokcli.serveraddr,ngrokcli.serverport);		
+		SocketChannel channel=ngrokcli.connect(ngrokcli.serveraddr,ngrokcli.serverport,false);		
 		//添加到交换表
 		ngrokcli.setSock(channel, 3, 0,null);//代理连接
 	}
@@ -139,13 +139,13 @@ public class MsgOn {
 			try{
 				JSONObject Payload = json.getJSONObject("Payload");
 				String Url=Payload.getString("Url");
-				SocketChannel localChannel=ngrokcli.connect(ngrokcli.tunnelinfos.get(Url).get("localhost"), Integer.parseInt(ngrokcli.tunnelinfos.get(Url).get("localport")));
-				//添加到交换表
-				ngrokcli.setSock(localChannel, 2, 0, channel);
+				SocketChannel localChannel=ngrokcli.connect(ngrokcli.tunnelinfos.get(Url).get("localhost"), Integer.parseInt(ngrokcli.tunnelinfos.get(Url).get("localport")),false);
 				//添加到交换表
 				ngrokcli.setSock(channel,3, 1, localChannel);	
+				//添加到交换表
+				ngrokcli.setSock(localChannel, 2, 0, channel);
 			
-			}catch (JSONException e) {
+			}catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}

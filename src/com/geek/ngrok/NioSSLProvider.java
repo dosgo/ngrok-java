@@ -9,6 +9,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.Executor;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.SSLContext;
@@ -104,5 +105,23 @@ public abstract class NioSSLProvider extends SSLProvider
 
 	public void freeEngine(SocketChannel channel ){
 		 engines.remove(channel);
+		 try {
+			channel.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public void closeEngine(SocketChannel channel){
+		  SSLEngine  engine=  engines.get(channel);
+		   if(engine==null){
+			   try {
+				engine.closeInbound();
+			} catch (SSLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		   }
 	}
 }
