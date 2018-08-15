@@ -83,6 +83,8 @@ public class NgrokClient {
 		         {
 		            System.out.println("handshake failure");
 		            ex.printStackTrace();
+		            ssl.freeEngine(key);
+		        	freeSock(key);//回收内存
 		         }
 
 		         @Override
