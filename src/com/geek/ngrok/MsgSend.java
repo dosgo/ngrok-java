@@ -2,6 +2,9 @@ package com.geek.ngrok;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 import java.util.UUID;
 
 import org.json.JSONException;
@@ -9,8 +12,12 @@ import org.json.JSONObject;
 
 public class MsgSend {
 	
-
-	public static  void  SendAuth(String ClientId,String user,OutputStream o) {
+	NgrokClient ngrokcli;
+	public MsgSend(NgrokClient ngrokcli) {
+		this.ngrokcli=ngrokcli;
+	}
+	
+	public   void  SendAuth(String ClientId,String user,SocketChannel key) {
 
 		try {
 			JSONObject msgjson=new JSONObject();
@@ -24,7 +31,7 @@ public class MsgSend {
 			Payloadjson.put("Arch", "amd64");
 			Payloadjson.put("ClientId", ClientId);
 			msgjson.put("Payload", Payloadjson);
-			pack(msgjson.toString(),o);
+			pack(msgjson.toString(),key);
 			
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
@@ -34,7 +41,7 @@ public class MsgSend {
 		
 	}
 	
-	public static  void  SendReqTunnel(OutputStream o,String ReqId,String Protocol,String Hostname,String Subdomain,String RemotePort,String HttpAuth) {
+	public   void  SendReqTunnel(SocketChannel key,String ReqId,String Protocol,String Hostname,String Subdomain,String RemotePort,String HttpAuth) {
 		//
 		try {
 			JSONObject msgjson=new JSONObject();
@@ -55,7 +62,7 @@ public class MsgSend {
 				Payloadjson.put("Hostname", Hostname);
 			}
 			msgjson.put("Payload", Payloadjson);
-			pack(msgjson.toString(),o);
+			pack(msgjson.toString(),key);
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -63,32 +70,26 @@ public class MsgSend {
 	
 	}
 	
-	public static  void  SendPong(OutputStream o) {		
-		pack("{\"Type\":\"Pong\",\"Payload\":{}}",o);
+	public   void  SendPong(SocketChannel key) {		
+		pack("{\"Type\":\"Pong\",\"Payload\":{}}",key);
 	}
 	
-	public static  void  SendPing(OutputStream o) {		
-		pack("{\"Type\":\"Ping\",\"Payload\":{}}",o);
+	public   void  SendPing(SocketChannel key) {		
+		pack("{\"Type\":\"Ping\",\"Payload\":{}}",key);
 	}
 	
 
-	public static  void  SendRegProxy(String ClientId,OutputStream o) {		
+	public   void  SendRegProxy(String ClientId,SocketChannel key) {		
 		
 
 		pack("{\"Type\":\"RegProxy\",\"Payload\":{\"ClientId\":\""
-				+ ClientId + "\"}}",o);
+				+ ClientId + "\"}}",key);
 	}
 	
 	
-	public static void pack(String str, OutputStream o) {
+	public  void pack(String str,SocketChannel key) {
 		byte[] lenbuf = BytesUtil.longToBytes(str.length(), 0);
-		byte[] xx = str.getBytes();
-		byte[] msgpack = BytesUtil.addBytesnew(str.length() + 8, lenbuf, xx);
-		Log.print("str:"+str);
-		try {
-			o.write(msgpack, 0, str.length() + 8);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		byte[] msgpack = BytesUtil.addBytesnew(str.length() + 8, lenbuf, str.getBytes());				
+		ngrokcli.ssl.sendAsync(key, ByteBuffer.wrap(msgpack));
 	}
 }

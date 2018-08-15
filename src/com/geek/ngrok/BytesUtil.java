@@ -20,8 +20,8 @@ public class BytesUtil {
 		byte[] dest = new byte[maxlength]; // 目标数组
 		for (int i = 0; i < src.length; i++) {
 			length = src[i].length;
-			System.arraycopy(src[i], 0, dest, index, length); // 将每�?��byte[] //
-																// 复制�?目标数组
+			System.arraycopy(src[i], 0, dest, index, length); // 将每�??��byte[] //
+																// 复制�??目标数组
 			index = index + length; // 起始位置向后挪动byte[]的length
 		}
 		return dest;
@@ -33,7 +33,7 @@ public class BytesUtil {
 	 * @param b
 	 *            是byte数组
 	 * @param j
-	 *            是大�?
+	 *            是大�??
 	 * @return
 	 */
 	public static byte[] cutOutByte(byte[] b, int start, int len) {
@@ -47,14 +47,14 @@ public class BytesUtil {
 		return bjq;
 	}
 
-	// 转大端
+	// 转大�?
 	public static byte[] longToBytes(long x) {
 		ByteBuffer buffer = ByteBuffer.allocate(8);
 		buffer.putLong(0, x);
 		return buffer.array();
 	}
 
-	// 转小端
+	// 转小�?
 	public static byte[] longToBytes(long x, int pos) {
 
 		byte[] bytes = longToBytes(x);
@@ -122,7 +122,7 @@ public class BytesUtil {
 	}
 
 	/**/
-	/* 低位填充转整�? */
+	/* 低位填充转整�?? */
 	public static int bytesToInt(byte[] bytes) {
 
 		int addr = bytes[0] & 0xFF;

@@ -1,28 +1,25 @@
 package com.geek.ngrok;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.Socket;
+
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.UUID;
 
-import javax.net.ssl.SSLSocket;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 public class MsgOn {
-	boolean isrecv = true;
 	NgrokClient ngrokcli;
-
-
-
+	
 	public MsgOn(NgrokClient ngrokcli) {
 		this.ngrokcli=ngrokcli;
 		// TODO Auto-generated constructor stub
 	}
 
-	public void jsonunpack(String str, SSLSocket s) {
+	public void jsonunpack(String str,SocketChannel key) {
 		JSONObject json;
 		try {
 			Log.print("recvstr:" + str);
@@ -35,7 +32,7 @@ public class MsgOn {
 				String Error = Payload.getString("Error");
 				if (Error.endsWith("")) {
 					Log.print("AuthResp .....OK....");
-					AuthResp(json, s);
+					AuthResp(json, key);
 				} else {
 					Log.print("AuthResp .....error....");
 				}
@@ -50,7 +47,7 @@ public class MsgOn {
 			// ping ack
 			if (type.equals("Ping")) {
 
-				Ping(json, s);
+				Ping(json, key);
 			}
 			if (type.equals("Pong")) {
 
@@ -71,7 +68,7 @@ public class MsgOn {
 
 			// StartProxy
 			if (type.equals("StartProxy")) {
-				StartProxy(json, s);
+				StartProxy(json, key);
 			}
 
 		} catch (Exception e) {
@@ -81,30 +78,28 @@ public class MsgOn {
 
 	}
 
-	public void AuthResp(JSONObject json, SSLSocket s) {
+	public void AuthResp(JSONObject json, SocketChannel key) {
 
 		// 请求映射
 		try {
 			JSONObject Payload = json.getJSONObject("Payload");
 			ngrokcli.ClientId = Payload.getString("ClientId");
 			
-			// 
+			
 			HashMap<String, String> tunelInfo;
 			
 	        for(int i = 0;i < ngrokcli.tunnels.size(); i ++){
 	        	tunelInfo=ngrokcli.tunnels.get(i);
 	        	String ReqId =  UUID.randomUUID().toString().toLowerCase().replace("-", "").substring(0, 8);
-	        	MsgSend.SendReqTunnel(s.getOutputStream(),ReqId, tunelInfo.get("Protocol"),tunelInfo.get("Hostname"),tunelInfo.get("Subdomain"),tunelInfo.get("RemotePort"),tunelInfo.get("HttpAuth"));
+	        	this.ngrokcli.msgSend.SendReqTunnel(key,ReqId, tunelInfo.get("Protocol"),tunelInfo.get("Hostname"),tunelInfo.get("Subdomain"),tunelInfo.get("RemotePort"),tunelInfo.get("HttpAuth"));
 	        	HashMap<String, String> tunelInfo1 = new HashMap<String, String>();
 	        	tunelInfo1.put("localhost", tunelInfo.get("localhost"));
 	        	tunelInfo1.put("localport", tunelInfo.get("localport"));
 	        	ngrokcli.tunnelinfos.put(ReqId, tunelInfo1);
 	        	
 	        }
-			
-			
-			// start ping thread
-			new PingThread(ngrokcli,s).start();
+	        //ping一次
+	        this.ngrokcli.msgSend.SendPing(key);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -112,17 +107,13 @@ public class MsgOn {
 	}
 
 	public void ReqProxy(JSONObject json) {
-		new ProxyThread(ngrokcli,ngrokcli.ClientId).start();
+		SocketChannel channel=ngrokcli.connect(ngrokcli.serveraddr,ngrokcli.serverport);		
+		//添加到交换表
+		ngrokcli.setSock(channel, 3, 0,null);//代理连接
 	}
 
-	public void Ping(JSONObject json, SSLSocket s) {
-
-		try {
-			MsgSend.SendPong(s.getOutputStream());
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	public void Ping(JSONObject json,SocketChannel key) {
+		this.ngrokcli.msgSend.SendPong(key);
 	}
 	
 	public void Pong() {
@@ -135,91 +126,75 @@ public class MsgOn {
 			JSONObject Payload = json.getJSONObject("Payload");
 			String ReqId=Payload.getString("ReqId");
 			//添加到通道队列
-			
 			ngrokcli.tunnelinfos.put(Payload.getString("Url"), ngrokcli.tunnelinfos.get(ReqId));
 			ngrokcli.tunnelinfos.remove(ReqId);//remove 
-			System.out.println("Url:" + Payload.getString("Url")
-					+ "  Protocol:" + Payload.getString("Protocol"));
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 
-	public void StartProxy(JSONObject json, SSLSocket s) {
-		try {
-			// 不再接收命令,
-			this.isrecv = false;
+	public void StartProxy(JSONObject json, SocketChannel channel) {
+	
 			try{
 				JSONObject Payload = json.getJSONObject("Payload");
 				String Url=Payload.getString("Url");
-				Socket locals = new Socket(ngrokcli.tunnelinfos.get(Url).get("localhost"),Integer.parseInt(ngrokcli.tunnelinfos.get(Url).get("localport")));
-				new SOCKSToThread(s.getInputStream(),
-						locals.getOutputStream());
-
-				// 读取本地数据给远程
-				new SOCKSToThread(locals.getInputStream(),
-						s.getOutputStream());
+				SocketChannel localChannel=ngrokcli.connect(ngrokcli.tunnelinfos.get(Url).get("localhost"), Integer.parseInt(ngrokcli.tunnelinfos.get(Url).get("localport")));
+				//添加到交换表
+				ngrokcli.setSock(localChannel, 2, 0, channel);
+				//添加到交换表
+				ngrokcli.setSock(channel,3, 1, localChannel);	
+			
 			}catch (JSONException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}
 
-	public void unpack(SSLSocket s) {
-		byte[] packbuff = new byte[2048];
-		int packbufflen = 0;
-		byte[] buffer = new byte[1024];
-		try {
-			InputStream zx = s.getInputStream();
-			while (isrecv) {
-				int len = zx.read(buffer);
-				if (len == -1) {
-					break;
-				}
-				if (len == 0) {
-					continue;
-				}
-				BytesUtil.myaddBytes(packbuff, packbufflen, buffer, len);
-				packbufflen = packbufflen + len;
+	public void unpack(SocketChannel key,ByteBuffer decrypted) {
+		
+		
+		SockInfo sockinfo= ngrokcli.Socks.get(key);
 
-				if (packbufflen > 8) {
+		if(sockinfo.buf==null){
+			sockinfo.buf = new byte[4096];
+			sockinfo.buflen=0;
+		}
+		
+    	byte[] buffer = new byte[decrypted.remaining()];
+    	decrypted.get(buffer);
+    	
+		int len = buffer.length;
+		BytesUtil.myaddBytes(sockinfo.buf, sockinfo.buflen, buffer, len);
+		sockinfo.buflen = sockinfo.buflen + len;
 
-					// 发送时间
-					int packlen = (int) BytesUtil
-							.bytes2long(BytesUtil.leTobe(
-									BytesUtil.cutOutByte(packbuff, 0, 8), 8), 0);
-					// 加上头8个字节
-					packlen = packlen + 8;
-					if (packbufflen == packlen) {
-						jsonunpack(
-								new String(BytesUtil.cutOutByte(packbuff, 8,
-										packlen - 8)), s);
-						packbufflen = 0;
-					}
+		if (sockinfo.buflen > 8) {
 
-					else if (packbufflen > packlen) {
-						jsonunpack(
-								new String(BytesUtil.cutOutByte(packbuff, 8,
-										packlen - 8)), s);
-						packbufflen = packbufflen - packlen;
-						BytesUtil.myaddBytes(packbuff, 0, BytesUtil.cutOutByte(
-								packbuff, packlen, packbufflen), packbufflen);
-					}
-
-				}
-
+			//
+			int packlen = (int) BytesUtil
+					.bytes2long(BytesUtil.leTobe(
+							BytesUtil.cutOutByte(sockinfo.buf, 0, 8), 8), 0);
+			
+			// 加上头8个字节
+			packlen = packlen + 8;
+			if (sockinfo.buflen == packlen) {
+				jsonunpack(
+						new String(BytesUtil.cutOutByte(sockinfo.buf, 8,
+								packlen - 8)), key);
+				sockinfo.buflen = 0;
 			}
-		} catch (IOException e) {
-			//异常关闭连接
-			isrecv=false;
-			//e.printStackTrace();
-			return ;
+
+			else if (sockinfo.buflen > packlen) {
+				 
+				jsonunpack(
+						new String(BytesUtil.cutOutByte(sockinfo.buf, 8,
+								packlen - 8)), key);
+				sockinfo.buflen = sockinfo.buflen - packlen;
+				BytesUtil.myaddBytes(sockinfo.buf, 0, BytesUtil.cutOutByte(
+						sockinfo.buf, packlen, sockinfo.buflen), sockinfo.buflen);
+			}
+
 		}
 	}
 }
