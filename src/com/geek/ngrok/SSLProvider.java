@@ -1,14 +1,10 @@
 package com.geek.ngrok;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
@@ -20,7 +16,8 @@ public abstract class SSLProvider
    final Executor ioWorker, taskWorkers;
    final ByteBuffer clientWrap, clientUnwrap;
    final ByteBuffer serverWrap, serverUnwrap;
-   public HashMap<SocketChannel, SSLEngine> engines = new HashMap<SocketChannel, SSLEngine>();  
+  // public HashMap<SelectionKey, SSLEngine> engines = new HashMap<SelectionKey, SSLEngine>();  
+	public Map<SelectionKey, SSLEngine> engines =  Collections.synchronizedMap(new HashMap<SelectionKey, SSLEngine>());  
 
    public SSLProvider(int capacity, Executor ioWorker, Executor taskWorkers)
    {
@@ -33,13 +30,13 @@ public abstract class SSLProvider
       this.taskWorkers = taskWorkers;
    }
 
-   public abstract void onInput(SocketChannel key,ByteBuffer decrypted);
-   public abstract void onOutput(SocketChannel key,ByteBuffer encrypted);
-   public abstract void onFailure(SocketChannel key,Exception ex);
-   public abstract void onSuccess(SocketChannel key);
-   public abstract void onClosed(SocketChannel key);
+   public abstract void onInput(SelectionKey key,ByteBuffer decrypted);
+   public abstract void onOutput(SelectionKey key,ByteBuffer encrypted);
+   public abstract void onFailure(SelectionKey key,Exception ex);
+   public abstract void onSuccess(SelectionKey key);
+   public abstract void onClosed(SelectionKey key);
 
-   public void sendAsync(final SocketChannel key,final ByteBuffer data)
+   public void sendAsync(final SelectionKey key,final ByteBuffer data)
    {
       this.ioWorker.execute(new Runnable()
       {
@@ -52,7 +49,7 @@ public abstract class SSLProvider
       });
    }
 
-   public void notify(final SocketChannel key,final ByteBuffer data)
+   public void notify(final SelectionKey key,final ByteBuffer data)
    {
       this.ioWorker.execute(new Runnable()
       {
@@ -65,7 +62,7 @@ public abstract class SSLProvider
       });
    }
    
-   public void exec(SocketChannel key)
+   public void exec(SelectionKey key)
    {
       // executes non-blocking tasks on the IO-Worker
       while (this.isHandShaking(key))
@@ -74,7 +71,7 @@ public abstract class SSLProvider
       }
    }
    
-   public  SSLEngine getEngine(SocketChannel key) throws  SSLException {
+   public  SSLEngine getEngine(SelectionKey key) throws  SSLException {
 	   SSLEngine  engine=  engines.get(key);
 	   if(engine==null){
 		   new SSLException("not find engine");
@@ -83,7 +80,7 @@ public abstract class SSLProvider
 	   return engine;   
    }
 
-   private synchronized boolean isHandShaking(final SocketChannel key)
+   private synchronized boolean isHandShaking(final SelectionKey key)
    {
 	SSLEngine engine;
 	try {
@@ -145,7 +142,7 @@ public abstract class SSLProvider
 	    return false;
    }
 
-   private boolean wrap(SocketChannel key)
+   private boolean wrap(SelectionKey key)
    {
 	  SSLEngine engine;
 	try {
@@ -194,16 +191,16 @@ public abstract class SSLProvider
       return true;
    }
 
-   private boolean unwrap(SocketChannel key)
+   private boolean unwrap(SelectionKey key)
    {
       SSLEngineResult unwrapResult;
       SSLEngine engine;
-	try {
-		engine = this.getEngine(key);
-	} catch (SSLException e) {
-		   this.onFailure(key,e);
-	         return false;
-	}
+      try {
+			engine = this.getEngine(key);
+	  } catch (SSLException e) {
+			this.onFailure(key,e);
+		    return false;
+	  }
      
       try
       {
@@ -211,7 +208,7 @@ public abstract class SSLProvider
          unwrapResult = engine.unwrap(clientUnwrap, serverUnwrap);
          clientUnwrap.compact();
       }
-      catch (SSLException ex)
+      catch (Exception ex)
       {
          this.onFailure(key,ex);
          return false;

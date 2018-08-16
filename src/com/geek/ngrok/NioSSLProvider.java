@@ -4,8 +4,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.nio.channels.WritableByteChannel;
-import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.Executor;
 import javax.net.ssl.SSLEngine;
@@ -25,24 +23,24 @@ public abstract class NioSSLProvider extends SSLProvider
    }
    
    @Override
-   public void onOutput(SocketChannel key,ByteBuffer encrypted)
+   public void onOutput(SelectionKey key,ByteBuffer encrypted)
    {
       try
       {
-         ((WritableByteChannel)key).write(encrypted);
+         ((SocketChannel) key.channel()).write(encrypted);
       }
       catch (IOException exc)
       {
          throw new IllegalStateException(exc);
       }
    }
-   public boolean processInput(SocketChannel key)
+   public boolean processInput(SelectionKey key)
    {
 	  buffer.clear();
       int bytes;
       try
       {
-         bytes = ((ReadableByteChannel) key).read(buffer);
+         bytes = ((ReadableByteChannel) key.channel()).read(buffer);
       }
       catch (IOException ex)
       {
@@ -60,7 +58,7 @@ public abstract class NioSSLProvider extends SSLProvider
    }
    
 
-   public boolean initEngine(SocketChannel key,boolean clientMode){
+   public boolean initEngine(SelectionKey key,boolean clientMode){
 	   
 	   TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
 
@@ -78,7 +76,7 @@ public abstract class NioSSLProvider extends SSLProvider
 	   } };
 
 	   
-	   SocketChannel   socketChannel = (SocketChannel) key;  //
+	   SocketChannel   socketChannel = (SocketChannel) key.channel();  //
        if (socketChannel.isConnectionPending()) {
    			try {
   				 socketChannel.finishConnect();
@@ -103,17 +101,17 @@ public abstract class NioSSLProvider extends SSLProvider
 
 
 
-	public void freeEngine(SocketChannel channel ){
-		 engines.remove(channel);
+	public void freeEngine(SelectionKey key ){
+		 engines.remove(key);
 		 try {
-			channel.close();
+			 key.channel().close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 	
-	public void closeEngine(SocketChannel channel){
+	public void closeEngine(SelectionKey channel){
 		  SSLEngine  engine=  engines.get(channel);
 		   if(engine==null){
 			   try {

@@ -3,7 +3,6 @@ package com.geek.ngrok;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -19,7 +18,7 @@ public class MsgOn {
 		// TODO Auto-generated constructor stub
 	}
 
-	public void jsonunpack(String str,SocketChannel key) {
+	public void jsonunpack(String str,SelectionKey key) {
 		JSONObject json;
 		try {
 			Log.print("recvstr:" + str);
@@ -78,7 +77,7 @@ public class MsgOn {
 
 	}
 
-	public void AuthResp(JSONObject json, SocketChannel key) {
+	public void AuthResp(JSONObject json, SelectionKey key) {
 
 		// 请求映射
 		try {
@@ -107,12 +106,18 @@ public class MsgOn {
 	}
 
 	public void ReqProxy(JSONObject json) {
-		SocketChannel channel=ngrokcli.connect(ngrokcli.serveraddr,ngrokcli.serverport,false);		
-		//添加到交换表
-		ngrokcli.setSock(channel, 3, 0,null);//代理连接
+		
+  	  SockInfo sockinfo=new SockInfo();
+		
+  	  sockinfo.type=3;
+  	  sockinfo.tokey=null;
+  	  sockinfo.forward=0;
+  	  
+	  SelectionKey key=ngrokcli.connect(ngrokcli.serveraddr,ngrokcli.serverport,false,sockinfo);		
+
 	}
 
-	public void Ping(JSONObject json,SocketChannel key) {
+	public void Ping(JSONObject json,SelectionKey key) {
 		this.ngrokcli.msgSend.SendPong(key);
 	}
 	
@@ -134,16 +139,26 @@ public class MsgOn {
 		}
 	}
 
-	public void StartProxy(JSONObject json, SocketChannel channel) {
+	public void StartProxy(JSONObject json, SelectionKey key) {
 	
 			try{
 				JSONObject Payload = json.getJSONObject("Payload");
 				String Url=Payload.getString("Url");
-				SocketChannel localChannel=ngrokcli.connect(ngrokcli.tunnelinfos.get(Url).get("localhost"), Integer.parseInt(ngrokcli.tunnelinfos.get(Url).get("localport")),false);
-				//添加到交换表
-				ngrokcli.setSock(channel,3, 1, localChannel);	
-				//添加到交换表
-				ngrokcli.setSock(localChannel, 2, 0, channel);
+				
+			  	  SockInfo sockinfo=new SockInfo();
+					
+			  	  sockinfo.type=2;
+			  	  sockinfo.tokey=key;
+			  	  sockinfo.forward=0;
+			  	  
+				SelectionKey localKey=ngrokcli.connect(ngrokcli.tunnelinfos.get(Url).get("localhost"), Integer.parseInt(ngrokcli.tunnelinfos.get(Url).get("localport")),false,sockinfo);
+	
+				 //处理远程连接替换
+				  SockInfo sockinfo1=(SockInfo) key.attachment();
+				  sockinfo1.forward=1;
+				  sockinfo1.tokey=localKey;
+				  key.attach(sockinfo1);
+
 			
 			}catch (Exception e) {
 				// TODO Auto-generated catch block
@@ -152,10 +167,12 @@ public class MsgOn {
 			
 	}
 
-	public void unpack(SocketChannel key,ByteBuffer decrypted) {
+	public void unpack(SelectionKey key,ByteBuffer decrypted) {
 		
 		
-		SockInfo sockinfo= ngrokcli.Socks.get(key);
+		SockInfo sockinfo=(SockInfo) key.attachment();
+		
+
 
 		if(sockinfo.buf==null){
 			sockinfo.buf = new byte[4096];

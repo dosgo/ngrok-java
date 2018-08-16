@@ -11,8 +11,7 @@ public class ngrok{
 		//new
 			NgrokClient ngclient=new NgrokClient();
 			//addtunnel
-			ngclient.addTun("127.0.0.1",81,"http","","",0,"");
-			ngclient.addTun("127.0.0.1",80,"http","","",0,"");
+			ngclient.addTun("127.0.0.1",80,"http","","test1",0,"");
 			//start
 			ngclient.start();
      

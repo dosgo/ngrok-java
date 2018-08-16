@@ -1,11 +1,9 @@
 package com.geek.ngrok;
 
-import java.io.IOException;
-import java.io.OutputStream;
+
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.SocketChannel;
-import java.util.UUID;
+
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -17,7 +15,7 @@ public class MsgSend {
 		this.ngrokcli=ngrokcli;
 	}
 	
-	public   void  SendAuth(String ClientId,String user,SocketChannel key) {
+	public   void  SendAuth(String ClientId,String user,SelectionKey key) {
 
 		try {
 			JSONObject msgjson=new JSONObject();
@@ -41,7 +39,7 @@ public class MsgSend {
 		
 	}
 	
-	public   void  SendReqTunnel(SocketChannel key,String ReqId,String Protocol,String Hostname,String Subdomain,String RemotePort,String HttpAuth) {
+	public   void  SendReqTunnel(SelectionKey key,String ReqId,String Protocol,String Hostname,String Subdomain,String RemotePort,String HttpAuth) {
 		//
 		try {
 			JSONObject msgjson=new JSONObject();
@@ -70,16 +68,16 @@ public class MsgSend {
 	
 	}
 	
-	public   void  SendPong(SocketChannel key) {		
+	public   void  SendPong(SelectionKey key) {		
 		pack("{\"Type\":\"Pong\",\"Payload\":{}}",key);
 	}
 	
-	public   void  SendPing(SocketChannel key) {		
+	public   void  SendPing(SelectionKey key) {		
 		pack("{\"Type\":\"Ping\",\"Payload\":{}}",key);
 	}
 	
 
-	public   void  SendRegProxy(String ClientId,SocketChannel key) {		
+	public   void  SendRegProxy(String ClientId,SelectionKey key) {		
 		
 
 		pack("{\"Type\":\"RegProxy\",\"Payload\":{\"ClientId\":\""
@@ -87,7 +85,7 @@ public class MsgSend {
 	}
 	
 	
-	public  void pack(String str,SocketChannel key) {
+	public  void pack(String str,SelectionKey key) {
 		byte[] lenbuf = BytesUtil.longToBytes(str.length(), 0);
 		byte[] msgpack = BytesUtil.addBytesnew(str.length() + 8, lenbuf, str.getBytes());				
 		ngrokcli.ssl.sendAsync(key, ByteBuffer.wrap(msgpack));
