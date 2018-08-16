@@ -27,7 +27,7 @@ class SockInfo{
 }
 
 public class NgrokClient {
-	
+	String ver="ngrok-java v1.1(2018/8/16)\r\n";
 	String serveraddr="tunnel.qydev.com";
 	int serverport=4443;
 	public String ClientId = "";
@@ -43,6 +43,7 @@ public class NgrokClient {
 	Selector selector;
 	public HashMap<String,HashMap<String, String>> tunnelinfos = new HashMap<String,HashMap<String, String>>();  	
 	public SelectionKey mainkey;
+	public boolean run=true;
 
 	MsgOn msg = new MsgOn(NgrokClient.this);
 	MsgSend msgSend = new MsgSend(NgrokClient.this);
@@ -128,9 +129,9 @@ public class NgrokClient {
 	 }
 
 	public void start(){
-		
+			 System.out.println(ver);
 		      // NIO selector
-		      while (true)
+		      while (run)
 		      {
 		    	  long ctime=System.currentTimeMillis() / 1000;
 		    	  //检查断线
@@ -249,13 +250,12 @@ public class NgrokClient {
 						break;
 					}
 		      }
-
-		      
-		
-	  
-	
 	}
 	
+	
+	public void close(){
+		run=false;
+	}
 	
 	 public void addTun(String localhost, int localport,String Protocol,String Hostname,String Subdomain,int RemotePort,String HttpAuth){
 			
