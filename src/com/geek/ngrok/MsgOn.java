@@ -23,7 +23,6 @@ public class MsgOn {
 		try {
 			Log.print("recvstr:" + str);
 			json = new JSONObject(str);
-
 			String type = json.getString("Type");
 			// Auth back
 			if (type.equals("AuthResp")) {
@@ -38,18 +37,14 @@ public class MsgOn {
 			}
 
 			if (type.equals("ReqProxy")) {
-
 				ReqProxy(json);
-
 			}
 
 			// ping ack
 			if (type.equals("Ping")) {
-
 				Ping(json, key);
 			}
 			if (type.equals("Pong")) {
-
 				Pong();
 			}
 
@@ -64,7 +59,6 @@ public class MsgOn {
 					Log.print("NewTunnel .....error....");
 				}
 			}
-
 			// StartProxy
 			if (type.equals("StartProxy")) {
 				StartProxy(json, key);
@@ -74,19 +68,14 @@ public class MsgOn {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
 	}
 
 	public void AuthResp(JSONObject json, SelectionKey key) {
-
 		// 请求映射
 		try {
 			JSONObject Payload = json.getJSONObject("Payload");
 			ngrokcli.ClientId = Payload.getString("ClientId");
-			
-			
 			HashMap<String, String> tunelInfo;
-			
 	        for(int i = 0;i < ngrokcli.tunnels.size(); i ++){
 	        	tunelInfo=ngrokcli.tunnels.get(i);
 	        	String ReqId =  UUID.randomUUID().toString().toLowerCase().replace("-", "").substring(0, 8);
@@ -95,7 +84,6 @@ public class MsgOn {
 	        	tunelInfo1.put("localhost", tunelInfo.get("localhost"));
 	        	tunelInfo1.put("localport", tunelInfo.get("localport"));
 	        	ngrokcli.tunnelinfos.put(ReqId, tunelInfo1);
-	        	
 	        }
 	        //ping一次
 	        this.ngrokcli.msgSend.SendPing(key);
@@ -106,15 +94,9 @@ public class MsgOn {
 	}
 
 	public void ReqProxy(JSONObject json) {
-		
   	  SockInfo sockinfo=new SockInfo();
-		
   	  sockinfo.type=3;
-  	  sockinfo.tokey=null;
-  	  sockinfo.forward=0;
-  	  
-	  SelectionKey key=ngrokcli.connect(ngrokcli.serveraddr,ngrokcli.serverport,false,sockinfo);		
-
+	  ngrokcli.connect(ngrokcli.serveraddr,ngrokcli.serverport,false,sockinfo);		
 	}
 
 	public void Ping(JSONObject json,SelectionKey key) {
@@ -126,7 +108,6 @@ public class MsgOn {
 	}
 
 	public  void NewTunnel(JSONObject json) {
-
 		try {
 			JSONObject Payload = json.getJSONObject("Payload");
 			String ReqId=Payload.getString("ReqId");
@@ -140,26 +121,18 @@ public class MsgOn {
 	}
 
 	public void StartProxy(JSONObject json, SelectionKey key) {
-	
 			try{
 				JSONObject Payload = json.getJSONObject("Payload");
 				String Url=Payload.getString("Url");
-				
-			  	  SockInfo sockinfo=new SockInfo();
-					
-			  	  sockinfo.type=2;
-			  	  sockinfo.tokey=key;
-			  	  sockinfo.forward=0;
-			  	  
+			  	SockInfo sockinfo=new SockInfo();
+			  	sockinfo.type=2;
+			  	sockinfo.tokey=key;
 				SelectionKey localKey=ngrokcli.connect(ngrokcli.tunnelinfos.get(Url).get("localhost"), Integer.parseInt(ngrokcli.tunnelinfos.get(Url).get("localport")),false,sockinfo);
-	
-				 //处理远程连接替换
-				  SockInfo sockinfo1=(SockInfo) key.attachment();
-				  sockinfo1.forward=1;
-				  sockinfo1.tokey=localKey;
-				  key.attach(sockinfo1);
-
-			
+				//处理远程连接替换
+				SockInfo sockinfo1=(SockInfo) key.attachment();
+				sockinfo1.forward=1;
+				sockinfo1.tokey=localKey;
+				key.attach(sockinfo1);
 			}catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -168,12 +141,7 @@ public class MsgOn {
 	}
 
 	public void unpack(SelectionKey key,ByteBuffer decrypted) {
-		
-		
 		SockInfo sockinfo=(SockInfo) key.attachment();
-		
-
-
 		if(sockinfo.buf==null){
 			sockinfo.buf = new byte[4096];
 			sockinfo.buflen=0;
@@ -181,11 +149,9 @@ public class MsgOn {
 		
     	byte[] buffer = new byte[decrypted.remaining()];
     	decrypted.get(buffer);
-    	
 		int len = buffer.length;
 		BytesUtil.myaddBytes(sockinfo.buf, sockinfo.buflen, buffer, len);
 		sockinfo.buflen = sockinfo.buflen + len;
-
 		if (sockinfo.buflen > 8) {
 
 			//

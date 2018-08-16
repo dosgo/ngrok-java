@@ -31,16 +31,16 @@ public abstract class NioSSLProvider extends SSLProvider
       }
       catch (IOException exc)
       {
-         throw new IllegalStateException(exc);
+        // throw new IllegalStateException(exc);
       }
    }
-   public boolean processInput(SelectionKey key)
+   public boolean processInput(SslInfo sinfo)
    {
 	  buffer.clear();
       int bytes;
       try
       {
-         bytes = ((ReadableByteChannel) key.channel()).read(buffer);
+         bytes = ((ReadableByteChannel) sinfo.key.channel()).read(buffer);
       }
       catch (IOException ex)
       {
@@ -53,42 +53,17 @@ public abstract class NioSSLProvider extends SSLProvider
       ByteBuffer copy = ByteBuffer.allocate(bytes);
       copy.put(buffer);
       copy.flip();
-      this.notify(key,copy);
+      this.notify(sinfo,copy);
       return true;
    }
    
 
-   public boolean initEngine(SelectionKey key,boolean clientMode){
-	   
-	   TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
-
-	       public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-	           return new java.security.cert.X509Certificate[] {};
-	       }
-
-	       public void checkClientTrusted(X509Certificate[] chain, String authType) {
-
-	       }
-
-	       public void checkServerTrusted(X509Certificate[] chain, String authType) {
-
-	       }
-	   } };
-
-	   
-	   SocketChannel   socketChannel = (SocketChannel) key.channel();  //
+   public boolean bindEngine(SslInfo sinfo){
+	   SocketChannel   socketChannel = (SocketChannel) sinfo.key.channel();  //
        if (socketChannel.isConnectionPending()) {
    			try {
   				 socketChannel.finishConnect();
-		   		 SSLContext sc = SSLContext.getInstance("TLS");
-		   	     sc.init(null, trustAllCerts, new java.security.SecureRandom());
-		   	     SSLEngine engine = sc.createSSLEngine();
-   				 if(clientMode){
-   				      engine.setUseClientMode(true);
-   				 }
-   				 engine.beginHandshake();
-   				 engines.put(key, engine);
-   				 this.exec(key);//初始化
+   				 this.exec(sinfo);//初始化
    				 return true;
    			} catch (Exception e) {
    				// TODO Auto-generated catch block
@@ -101,25 +76,5 @@ public abstract class NioSSLProvider extends SSLProvider
 
 
 
-	public void freeEngine(SelectionKey key ){
-		 engines.remove(key);
-		 try {
-			 key.channel().close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-	
-	public void closeEngine(SelectionKey channel){
-		  SSLEngine  engine=  engines.get(channel);
-		   if(engine==null){
-			   try {
-				engine.closeInbound();
-			} catch (SSLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		   }
-	}
+
 }

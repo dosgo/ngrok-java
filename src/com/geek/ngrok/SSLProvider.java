@@ -10,14 +10,21 @@ import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLException;
 
+
+
+class SslInfo{
+	SSLEngine engine;
+	SelectionKey tokey;//对方的连接
+	public SelectionKey key;
+}
+
 public abstract class SSLProvider
 {
- //  final SSLEngine engine;
    final Executor ioWorker, taskWorkers;
    final ByteBuffer clientWrap, clientUnwrap;
    final ByteBuffer serverWrap, serverUnwrap;
-  // public HashMap<SelectionKey, SSLEngine> engines = new HashMap<SelectionKey, SSLEngine>();  
-	public Map<SelectionKey, SSLEngine> engines =  Collections.synchronizedMap(new HashMap<SelectionKey, SSLEngine>());  
+   
+   
 
    public SSLProvider(int capacity, Executor ioWorker, Executor taskWorkers)
    {
@@ -27,7 +34,7 @@ public abstract class SSLProvider
       this.serverUnwrap = ByteBuffer.allocate(capacity);
       this.clientUnwrap.limit(0);
       this.ioWorker = ioWorker;
-      this.taskWorkers = taskWorkers;
+      this.taskWorkers = taskWorkers; 
    }
 
    public abstract void onInput(SelectionKey key,ByteBuffer decrypted);
@@ -36,7 +43,7 @@ public abstract class SSLProvider
    public abstract void onSuccess(SelectionKey key);
    public abstract void onClosed(SelectionKey key);
 
-   public void sendAsync(final SelectionKey key,final ByteBuffer data)
+   public void sendAsync(final SslInfo sinfo,final ByteBuffer data)
    {
       this.ioWorker.execute(new Runnable()
       {
@@ -44,12 +51,12 @@ public abstract class SSLProvider
          public void run()
          {
             clientWrap.put(data);
-            SSLProvider.this.exec(key);
+            SSLProvider.this.exec(sinfo);
          }
       });
    }
 
-   public void notify(final SelectionKey key,final ByteBuffer data)
+   public void notify(final SslInfo sinfo ,final ByteBuffer data)
    {
       this.ioWorker.execute(new Runnable()
       {
@@ -57,58 +64,52 @@ public abstract class SSLProvider
          public void run()
          {
             clientUnwrap.put(data);
-            SSLProvider.this.exec(key);
+            SSLProvider.this.exec(sinfo);
          }
       });
    }
    
-   public void exec(SelectionKey key)
+   public void exec(SslInfo sinfo)
    {
       // executes non-blocking tasks on the IO-Worker
-      while (this.isHandShaking(key))
+      while (this.isHandShaking(sinfo))
       {
          continue;
       }
    }
    
-   public  SSLEngine getEngine(SelectionKey key) throws  SSLException {
-	   SSLEngine  engine=  engines.get(key);
-	   if(engine==null){
-		   new SSLException("not find engine");
-		   return null;
-	   }
-	   return engine;   
-   }
 
-   private synchronized boolean isHandShaking(final SelectionKey key)
+
+   private synchronized boolean isHandShaking(final SslInfo sinfo)
    {
-	SSLEngine engine;
-	try {
-		engine = this.getEngine(key);
-		switch (engine.getHandshakeStatus())
+	
+	   if(sinfo.engine==null){
+		   return false;
+	   }
+		switch (sinfo.engine.getHandshakeStatus())
 	      {
 	         case NOT_HANDSHAKING:
 	            boolean occupied = false;
 	            {
 	               if (clientWrap.position() > 0)
-	            	   occupied |= this.wrap(key);
+	            	   occupied |= this.wrap(sinfo);
 	               if (clientUnwrap.position() > 0)
-	            	   occupied |= this.unwrap(key);
+	            	   occupied |= this.unwrap(sinfo);
 	            }
 	            return occupied;
 
 	         case NEED_WRAP:
-	            if (!this.wrap(key))
+	            if (!this.wrap(sinfo))
 	               return false;
 	            break;
 
 	         case NEED_UNWRAP:
-	            if (!this.unwrap(key))
+	            if (!this.unwrap(sinfo))
 	               return false;
 	            break;
 
 	         case NEED_TASK:
-	            final Runnable sslTask = engine.getDelegatedTask();
+	            final Runnable sslTask = sinfo.engine.getDelegatedTask();
 	            Runnable wrappedTask = new Runnable()
 	            {
 	               @Override
@@ -122,7 +123,7 @@ public abstract class SSLProvider
 	                	  @Override
 	                      public void run()
 	                      {                		  	
-	                		  SSLProvider.this.exec(key);
+	                		  SSLProvider.this.exec(sinfo);
 	                      }
 	                  });
 	               }
@@ -135,33 +136,25 @@ public abstract class SSLProvider
 	      }
 
 	      return true;
-		} catch (SSLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	    return false;
    }
 
-   private boolean wrap(SelectionKey key)
+   private boolean wrap(SslInfo sinfo)
    {
-	  SSLEngine engine;
-	try {
-		engine = this.getEngine(key);
-	} catch (SSLException e) {
-		this.onFailure(key,e);
-        return false;
-	}
+	
+	   if(sinfo.engine==null){
+		   return false;
+	   }
       SSLEngineResult wrapResult;
 
       try
       {
          clientWrap.flip();
-         wrapResult = engine.wrap(clientWrap, serverWrap);
+         wrapResult = sinfo.engine.wrap(clientWrap, serverWrap);
          clientWrap.compact();
       }
       catch (SSLException exc)
       {
-         this.onFailure(key,exc);
+         this.onFailure(sinfo.key,exc);
          return false;
       }
 
@@ -171,7 +164,7 @@ public abstract class SSLProvider
             if (serverWrap.position() > 0)
             {
                serverWrap.flip();
-               this.onOutput(key,serverWrap);
+               this.onOutput(sinfo.key,serverWrap);
                serverWrap.compact();
             }
             break;
@@ -184,33 +177,28 @@ public abstract class SSLProvider
             throw new IllegalStateException("failed to wrap");
 
          case CLOSED:
-            this.onClosed(key);
+            this.onClosed(sinfo.key);
             return false;
       }
 
       return true;
    }
 
-   private boolean unwrap(SelectionKey key)
+   private boolean unwrap(SslInfo sinfo)
    {
+	  if(sinfo.engine==null){
+		   return false;
+	   }
       SSLEngineResult unwrapResult;
-      SSLEngine engine;
-      try {
-			engine = this.getEngine(key);
-	  } catch (SSLException e) {
-			this.onFailure(key,e);
-		    return false;
-	  }
-     
       try
       {
          clientUnwrap.flip();
-         unwrapResult = engine.unwrap(clientUnwrap, serverUnwrap);
+         unwrapResult = sinfo.engine.unwrap(clientUnwrap, serverUnwrap);
          clientUnwrap.compact();
       }
       catch (Exception ex)
       {
-         this.onFailure(key,ex);
+         this.onFailure(sinfo.key,ex);
          return false;
       }
 
@@ -220,13 +208,13 @@ public abstract class SSLProvider
             if (serverUnwrap.position() > 0)
             {
                serverUnwrap.flip();
-               this.onInput(key,serverUnwrap);
+               this.onInput(sinfo.key,serverUnwrap);
                serverUnwrap.compact();
             }
             break;
 
          case CLOSED:
-            this.onClosed(key);
+            this.onClosed(sinfo.key);
             return false;
 
          case BUFFER_OVERFLOW:
@@ -238,7 +226,7 @@ public abstract class SSLProvider
 
       if (unwrapResult.getHandshakeStatus() == HandshakeStatus.FINISHED)
       {
-            this.onSuccess(key);
+            this.onSuccess(sinfo.key);
             return false;
       }
 

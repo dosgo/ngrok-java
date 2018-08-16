@@ -1,11 +1,14 @@
 package com.geek.ngrok;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -13,13 +16,14 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-
-
-
-
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 class SockInfo{
 	int type;//1远程连接,2本地连接,3代理连接
+	SslInfo sinfo;
 	SelectionKey tokey;//对方的连接
 	int forward;//转发标记,代理连接专用，
 	byte[] buf;
@@ -27,7 +31,7 @@ class SockInfo{
 }
 
 public class NgrokClient {
-	String ver="ngrok-java v1.1(2018/8/16)\r\n";
+	String ver="ngrok-java v1.3(2018/8/16)";
 	String serveraddr="tunnel.qydev.com";
 	int serverport=4443;
 	public String ClientId = "";
@@ -121,11 +125,37 @@ public class NgrokClient {
 	 
 	 public void reconnect(){
 	   	  SockInfo msockinfo=new SockInfo();
-	   	  msockinfo.type=1;
-	   	  msockinfo.tokey=null;
-	   	  msockinfo.forward=0;
+	   	  msockinfo.type=1;	   	  
 	   	  //连接到服务器
 	   	  mainkey=connect(serveraddr,serverport,false,msockinfo);
+	 }
+	 
+	 
+	 
+	 public SSLEngine NewEngine(){
+		 TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
+		       public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+		           return new java.security.cert.X509Certificate[] {};
+		       }
+		       public void checkClientTrusted(X509Certificate[] chain, String authType) {
+	
+		       }
+		       public void checkServerTrusted(X509Certificate[] chain, String authType) {
+	
+		       }
+		   } 
+		 };
+
+   	     try {
+   	    	 SSLContext sc = SSLContext.getInstance("TLS");
+			 sc.init(null, trustAllCerts, new java.security.SecureRandom());
+			 SSLEngine engine = sc.createSSLEngine();	
+		     engine.setUseClientMode(true);
+		     engine.beginHandshake();
+		     return engine;
+		} catch (Exception e) {
+		}
+   	    return null;
 	 }
 
 	public void start(){
@@ -139,15 +169,17 @@ public class NgrokClient {
 		    		  Iterator<SelectionKey>allSet =selector.keys().iterator();
 		    		  while (allSet.hasNext())
 		    	      {
-		    			  SelectionKey sKey1= allSet.next();
-		    			  allSet.remove();
+		    			
 		    			  try {
+		    				SelectionKey sKey1= allSet.next();
+			    			allSet.remove();
 							sKey1.channel().close();
-						  } catch (IOException e) {
+							sKey1.cancel();
+						  } catch (Exception e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						  }
-		    			  sKey1.cancel();
+		    			 
 		    			  
 		    	      }
 		    		  reconnect();//重连
@@ -189,14 +221,10 @@ public class NgrokClient {
 	    	        			
 			    	        	if(sKey.isConnectable()){
 			    	        		if(sockinfo.type==1||sockinfo.type==3){
-					        			if(ssl.initEngine(sKey, true)){
-					        			
-					        				  try
-					        			      {
+					        			if(ssl.bindEngine(sockinfo.sinfo)){
+					        				  try{
 					        					sKey.channel().register(selector, SelectionKey.OP_READ).attach(sockinfo); 
-					        			      }catch (Exception ex)
-				        				      {
-				        				       
+					        			      }catch (Exception ex){ 
 				        				      }
 					        			}
 			    	        		}
@@ -215,19 +243,18 @@ public class NgrokClient {
 					    	        		    	remotesockinfo.buflen = 0;//清空
 					    	        			}
 				    	        			}
-				    	   
+				    	        			 sKey.channel().register(selector, SelectionKey.OP_READ).attach(sockinfo); 
 				    	        			
 			    	        			} catch (Exception e) {
 			    	        				freeSock(sKey);
 			    	    					// TODO Auto-generated catch block
 			    	    					e.printStackTrace();
-			    	    				}
-			    	        			sKey.channel().register(selector, SelectionKey.OP_READ).attach(sockinfo); 
+			    	        			}
 			    	        		}
 			    	        	}
 			    	        	if(sKey.isReadable()){
 			    	        		if(sockinfo.type==1||sockinfo.type==3){
-			    	        			boolean falg=ssl.processInput(sKey);
+			    	        			boolean falg=ssl.processInput(sockinfo.sinfo);
 			    	        			if(!falg){
 			    	        				//取消监听
 			    	        				sKey.cancel();
@@ -279,8 +306,8 @@ public class NgrokClient {
 					int len = clientChannel.read(buf);
 					buf.flip();
 					if(len>0){
-					
-						ssl.sendAsync(remoteKey,buf);
+						SockInfo sockinfo= (SockInfo) remoteKey.attachment();
+						ssl.sendAsync(sockinfo.sinfo,buf);
 					}
 					//关闭连接
 					if(len==-1){
@@ -306,15 +333,12 @@ public class NgrokClient {
 	    		
 	    		SocketChannel remoteChannel = (SocketChannel) remoteKey.channel();
 				if(remoteChannel.finishConnect()){
-					//System.out.println("str:"+new String(buffer));
 					remoteChannel.write(buf);
 				}else{
 					//先存起来
 					BytesUtil.myaddBytes(sockinfo.buf, sockinfo.buflen, buffer, buffer.length);
-					System.out.println("RemoteToLocal failure");
 				}		    	  
 			} catch (IOException e1) {
-				System.out.println("RemoteToLocal IOException");
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
@@ -327,11 +351,21 @@ public class NgrokClient {
 			channel = SocketChannel.open();
 			channel.configureBlocking(block);
 			channel.setOption(java.net.StandardSocketOptions.TCP_NODELAY, true);
-			channel.connect(new InetSocketAddress(serveraddr, serverport));
+			InetSocketAddress addr=new InetSocketAddress(serveraddr, serverport);
+			if(addr.getAddress()==null){
+				return null;
+			}
+			channel.connect(addr);
 			SelectionKey key= channel.register(selector,  SelectionKey.OP_CONNECT);
+			if(sockinfo.type==1||sockinfo.type==3){
+				SslInfo sinfo=new SslInfo();
+				sinfo.key=key;
+				sinfo.engine=NewEngine();
+				sockinfo.sinfo=sinfo; 
+			}
 			key.attach(sockinfo);
 			return key;
-		} catch (IOException e) {
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -346,13 +380,11 @@ public class NgrokClient {
 		SockInfo sockinfo= (SockInfo) key.attachment();
  		if(sockinfo!=null){
  			
- 			
  			//本地连接
  			if(sockinfo.type==2){
  				try {    
  					((SocketChannel) key.channel()).socket().close();
 					if(sockinfo.tokey!=null){
-						ssl.closeEngine(sockinfo.tokey);
 						((SocketChannel) sockinfo.tokey.channel()).socket().close();
 					}
 				} catch (IOException e) {
@@ -365,7 +397,7 @@ public class NgrokClient {
 			
 			//远程的关闭本地的
  			if(sockinfo.type==3){
- 				ssl.closeEngine(key);
+
  				if(sockinfo.tokey!=null){
  					try {
 						((SocketChannel) sockinfo.tokey.channel()).socket().close();
@@ -376,9 +408,6 @@ public class NgrokClient {
  				}
  			}
  		}
- 		if(sockinfo.type==1||sockinfo.type==3){
-            ssl.freeEngine(key);
-		}
 	 }
 	 
 	 

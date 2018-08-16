@@ -16,7 +16,6 @@ public class MsgSend {
 	}
 	
 	public   void  SendAuth(String ClientId,String user,SelectionKey key) {
-
 		try {
 			JSONObject msgjson=new JSONObject();
 			msgjson.put("Type","Auth");
@@ -35,8 +34,6 @@ public class MsgSend {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		
 	}
 	
 	public   void  SendReqTunnel(SelectionKey key,String ReqId,String Protocol,String Hostname,String Subdomain,String RemotePort,String HttpAuth) {
@@ -44,7 +41,6 @@ public class MsgSend {
 		try {
 			JSONObject msgjson=new JSONObject();
 			msgjson.put("Type","ReqTunnel");
-			
 			JSONObject Payloadjson=new JSONObject();
 			Payloadjson.put("ReqId", ReqId);
 			Payloadjson.put("Protocol", Protocol);
@@ -78,16 +74,20 @@ public class MsgSend {
 	
 
 	public   void  SendRegProxy(String ClientId,SelectionKey key) {		
-		
-
 		pack("{\"Type\":\"RegProxy\",\"Payload\":{\"ClientId\":\""
 				+ ClientId + "\"}}",key);
 	}
 	
 	
 	public  void pack(String str,SelectionKey key) {
+		if(key==null){
+			return ;
+		}
 		byte[] lenbuf = BytesUtil.longToBytes(str.length(), 0);
-		byte[] msgpack = BytesUtil.addBytesnew(str.length() + 8, lenbuf, str.getBytes());				
-		ngrokcli.ssl.sendAsync(key, ByteBuffer.wrap(msgpack));
+		byte[] msgpack = BytesUtil.addBytesnew(str.length() + 8, lenbuf, str.getBytes());
+		
+		SockInfo sockinfo= (SockInfo) key.attachment();
+		ngrokcli.ssl.sendAsync(sockinfo.sinfo,ByteBuffer.wrap(msgpack));
+		
 	}
 }
