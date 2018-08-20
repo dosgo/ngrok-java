@@ -31,7 +31,7 @@ class SockInfo{
 }
 
 public class NgrokClient {
-	String ver="ngrok-java v1.3(2018/8/16)";
+	String ver="ngrok-java v1.4(2018/8/20)";
 	String serveraddr="tunnel.qydev.com";
 	int serverport=4443;
 	public String ClientId = "";
@@ -62,12 +62,6 @@ public class NgrokClient {
 	 }
 	 
 	 public void init(){
-		 try {
-			selector = Selector.open();
-		 } catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		 }
 		    // create the worker threads
 	      final Executor ioWorker = Executors.newSingleThreadExecutor();
 	      final Executor taskWorkers = Executors.newFixedThreadPool(2);
@@ -80,7 +74,6 @@ public class NgrokClient {
 	         public void onFailure(SelectionKey key,Exception ex)
 	         {
 	            System.out.println("handshake failure");
-	            ex.printStackTrace();
 	        	freeSock(key);//回收内存
 	         }
 
@@ -124,6 +117,20 @@ public class NgrokClient {
 	 }
 	 
 	 public void reconnect(){
+		 long ctime=System.currentTimeMillis() / 1000;
+		 lasttime=0;
+		 reconnecttime=ctime;
+		 try {
+			selector=Selector.open();
+		 } catch (IOException e1) {
+		 }
+		 ssl.clearBuf();//清空一些缓存
+		  try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 	   	  SockInfo msockinfo=new SockInfo();
 	   	  msockinfo.type=1;	   	  
 	   	  //连接到服务器
@@ -132,7 +139,7 @@ public class NgrokClient {
 	 
 	 
 	 
-	 public SSLEngine NewEngine(){
+	 public SSLEngine NewEngine(String peerHost,int peerPort){
 		 TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
 		       public java.security.cert.X509Certificate[] getAcceptedIssuers() {
 		           return new java.security.cert.X509Certificate[] {};
@@ -149,9 +156,8 @@ public class NgrokClient {
    	     try {
    	    	 SSLContext sc = SSLContext.getInstance("TLS");
 			 sc.init(null, trustAllCerts, new java.security.SecureRandom());
-			 SSLEngine engine = sc.createSSLEngine();	
+			 SSLEngine engine = sc.createSSLEngine(peerHost,peerPort);	
 		     engine.setUseClientMode(true);
-		     engine.beginHandshake();
 		     return engine;
 		} catch (Exception e) {
 		}
@@ -166,24 +172,8 @@ public class NgrokClient {
 		    	  long ctime=System.currentTimeMillis() / 1000;
 		    	  //检查断线
 		    	  if((lasttime>0&&lasttime+60<ctime&&reconnecttime+65<ctime)||(lasttime==0&&reconnecttime+65<ctime)){
-		    		  Iterator<SelectionKey>allSet =selector.keys().iterator();
-		    		  while (allSet.hasNext())
-		    	      {
-		    			
-		    			  try {
-		    				SelectionKey sKey1= allSet.next();
-			    			allSet.remove();
-							sKey1.channel().close();
-							sKey1.cancel();
-						  } catch (Exception e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						  }
-		    			 
-		    			  
-		    	      }
-		    		  reconnect();//重连
-		    		  reconnecttime=ctime;
+		    		 
+		    		  reconnect();
 		    		  continue;
 		    	  }
 		    	  
@@ -191,19 +181,20 @@ public class NgrokClient {
 
 		    	  //定时心跳
 		    	  if(lasttime>0){
-		    		  if((lasttime==0||lasttime+25<ctime)&&pingtime+15<ctime){
+		    		  if((lasttime+25<ctime)&&pingtime+15<ctime){
 		    			  msgSend.SendPing(mainkey);
 		    			  pingtime=ctime;
 		    		  }
 		    	  }
 		    	  //为空睡毫秒,避免cpu过高
-		    	  if(selector.keys().isEmpty()){
+		    	  if(selector==null||selector.keys().isEmpty()){
 		    		  try {
 						Thread.sleep(100);
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
+		    		continue;
 		    	  }
 		    	  
 		    	  
@@ -345,13 +336,13 @@ public class NgrokClient {
 	    	  	
 	 }
 	 
-	 public SelectionKey  connect(String serveraddr,int serverport,boolean block,SockInfo sockinfo){
+	 public SelectionKey  connect(String host,int port,boolean block,SockInfo sockinfo){
 	    SocketChannel channel;
 		try {
 			channel = SocketChannel.open();
 			channel.configureBlocking(block);
 			channel.setOption(java.net.StandardSocketOptions.TCP_NODELAY, true);
-			InetSocketAddress addr=new InetSocketAddress(serveraddr, serverport);
+			InetSocketAddress addr=new InetSocketAddress(host, port);
 			if(addr.getAddress()==null){
 				return null;
 			}
@@ -360,7 +351,7 @@ public class NgrokClient {
 			if(sockinfo.type==1||sockinfo.type==3){
 				SslInfo sinfo=new SslInfo();
 				sinfo.key=key;
-				sinfo.engine=NewEngine();
+				sinfo.engine=NewEngine(host,port);
 				sockinfo.sinfo=sinfo; 
 			}
 			key.attach(sockinfo);

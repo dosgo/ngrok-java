@@ -9,6 +9,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSession;
 
 
 
@@ -35,6 +36,14 @@ public abstract class SSLProvider
       this.clientUnwrap.limit(0);
       this.ioWorker = ioWorker;
       this.taskWorkers = taskWorkers; 
+   }
+   
+   public void clearBuf(){
+	   this.clientWrap.clear();
+	   this.serverWrap.clear();
+	   this.clientUnwrap.clear();
+	   this.serverUnwrap.clear();
+	   this.clientUnwrap.limit(0);
    }
 
    public abstract void onInput(SelectionKey key,ByteBuffer decrypted);
@@ -86,6 +95,7 @@ public abstract class SSLProvider
 	   if(sinfo.engine==null){
 		   return false;
 	   }
+	   
 		switch (sinfo.engine.getHandshakeStatus())
 	      {
 	         case NOT_HANDSHAKING:

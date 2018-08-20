@@ -63,6 +63,7 @@ public abstract class NioSSLProvider extends SSLProvider
        if (socketChannel.isConnectionPending()) {
    			try {
   				 socketChannel.finishConnect();
+  				 sinfo.engine.beginHandshake();
    				 this.exec(sinfo);//≥ı ºªØ
    				 return true;
    			} catch (Exception e) {
