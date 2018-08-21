@@ -21,6 +21,8 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
+
+
 class SockInfo{
 	int type;//1远程连接,2本地连接,3代理连接
 	SslInfo sinfo;

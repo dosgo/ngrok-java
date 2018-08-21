@@ -15,7 +15,7 @@ import javax.net.ssl.SSLSession;
 
 class SslInfo{
 	SSLEngine engine;
-	SelectionKey tokey;//对方的连接
+	SelectionKey tokey;
 	public SelectionKey key;
 }
 
