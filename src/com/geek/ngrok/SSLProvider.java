@@ -33,7 +33,7 @@ public abstract class SSLProvider
       this.serverWrap = ByteBuffer.allocate(capacity);
       this.clientUnwrap = ByteBuffer.allocate(capacity);
       this.serverUnwrap = ByteBuffer.allocate(capacity);
-      this.clientUnwrap.limit(0);
+      //this.clientUnwrap.limit(0);
       this.ioWorker = ioWorker;
       this.taskWorkers = taskWorkers; 
    }
@@ -43,7 +43,6 @@ public abstract class SSLProvider
 	   this.serverWrap.clear();
 	   this.clientUnwrap.clear();
 	   this.serverUnwrap.clear();
-	   this.clientUnwrap.limit(0);
    }
 
    public abstract void onInput(SelectionKey key,ByteBuffer decrypted);

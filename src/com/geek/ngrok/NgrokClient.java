@@ -69,7 +69,7 @@ public class NgrokClient {
 	      final Executor taskWorkers = Executors.newFixedThreadPool(1);//Executors.newSingleThreadExecutor();//Executors.newFixedThreadPool(1);
 	      
 	     
-	      final int ioBufferSize = 64 * 1024;
+	      final int ioBufferSize = 32 * 1024;
 	      ssl = new NioSSLProvider(ioBufferSize, ioWorker, taskWorkers)
 	      {
 	         @Override
