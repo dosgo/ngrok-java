@@ -159,8 +159,8 @@ public class NgrokClient {
    	     try {
    	    	 SSLContext sc = SSLContext.getInstance("TLS");
 			 sc.init(null, trustAllCerts, new java.security.SecureRandom());
-			 //SSLEngine engine = sc.createSSLEngine(peerHost,peerPort);	
-			 SSLEngine engine = sc.createSSLEngine();	
+			 SSLEngine engine = sc.createSSLEngine(peerHost,peerPort);	
+			 //SSLEngine engine = sc.createSSLEngine();	
 		     engine.setUseClientMode(true);
 		     return engine;
 		} catch (Exception e) {
