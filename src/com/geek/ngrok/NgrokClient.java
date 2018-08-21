@@ -66,7 +66,7 @@ public class NgrokClient {
 	 public void init(){
 		    // create the worker threads
 	      final Executor ioWorker = Executors.newSingleThreadExecutor();
-	      final Executor taskWorkers = Executors.newSingleThreadExecutor();//Executors.newFixedThreadPool(1);
+	      final Executor taskWorkers = Executors.newFixedThreadPool(1);//Executors.newSingleThreadExecutor();//Executors.newFixedThreadPool(1);
 	      
 	     
 	      final int ioBufferSize = 64 * 1024;
