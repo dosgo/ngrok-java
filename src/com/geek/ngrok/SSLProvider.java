@@ -72,6 +72,7 @@ public abstract class SSLProvider
          @Override
          public void run()
          {
+        	 
             clientUnwrap.put(data);
             SSLProvider.this.exec(sinfo);
          }
@@ -164,6 +165,8 @@ public abstract class SSLProvider
       }
       catch (SSLException exc)
       {
+    	 //需要清空否则会异常
+    	 clientWrap.clear();
          this.onFailure(sinfo.key,exc);
          return false;
       }
@@ -206,8 +209,10 @@ public abstract class SSLProvider
          unwrapResult = sinfo.engine.unwrap(clientUnwrap, serverUnwrap);
          clientUnwrap.compact();
       }
-      catch (Exception ex)
+      catch (SSLException ex)
       {
+    	 //需要清空否则会异常
+    	 clientUnwrap.clear();
          this.onFailure(sinfo.key,ex);
          return false;
       }

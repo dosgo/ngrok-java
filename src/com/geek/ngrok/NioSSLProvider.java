@@ -66,7 +66,7 @@ public abstract class NioSSLProvider extends SSLProvider
   				 sinfo.engine.beginHandshake();
    				 this.exec(sinfo);//≥ı ºªØ
    				 return true;
-   			} catch (Exception e) {
+   			} catch (Exception e) {				
    				// TODO Auto-generated catch block
    				e.printStackTrace();
    			}

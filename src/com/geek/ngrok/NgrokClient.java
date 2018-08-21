@@ -33,7 +33,7 @@ class SockInfo{
 }
 
 public class NgrokClient {
-	String ver="ngrok-java v1.4(2018/8/20)";
+	String ver="ngrok-java v1.4(2018/8/21)";
 	String serveraddr="tunnel.qydev.com";
 	int serverport=4443;
 	public String ClientId = "";
@@ -69,13 +69,14 @@ public class NgrokClient {
 	      final Executor taskWorkers = Executors.newFixedThreadPool(2);
 	      
 	     
-	      final int ioBufferSize = 32 * 1024;
+	      final int ioBufferSize = 64 * 1024;
 	      ssl = new NioSSLProvider(ioBufferSize, ioWorker, taskWorkers)
 	      {
 	         @Override
 	         public void onFailure(SelectionKey key,Exception ex)
 	         {
 	            System.out.println("handshake failure");
+	            ex.printStackTrace();
 	        	freeSock(key);//回收内存
 	         }
 
@@ -158,7 +159,8 @@ public class NgrokClient {
    	     try {
    	    	 SSLContext sc = SSLContext.getInstance("TLS");
 			 sc.init(null, trustAllCerts, new java.security.SecureRandom());
-			 SSLEngine engine = sc.createSSLEngine(peerHost,peerPort);	
+			 //SSLEngine engine = sc.createSSLEngine(peerHost,peerPort);	
+			 SSLEngine engine = sc.createSSLEngine();	
 		     engine.setUseClientMode(true);
 		     return engine;
 		} catch (Exception e) {
@@ -173,12 +175,10 @@ public class NgrokClient {
 		      {
 		    	  long ctime=System.currentTimeMillis() / 1000;
 		    	  //检查断线
-		    	  if((lasttime>0&&lasttime+60<ctime&&reconnecttime+65<ctime)||(lasttime==0&&reconnecttime+65<ctime)){
-		    		 
+		    	  if((lasttime>0&&lasttime+60<ctime&&reconnecttime+65<ctime)||(lasttime==0&&reconnecttime+65<ctime)){ 
 		    		  reconnect();
 		    		  continue;
 		    	  }
-		    	  
 		    	  
 
 		    	  //定时心跳
@@ -266,7 +266,6 @@ public class NgrokClient {
 	    	        		}
 		    	      }
 					} catch (Exception e) {
-						e.printStackTrace();
 						break;
 					}
 		      }
